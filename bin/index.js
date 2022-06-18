@@ -29,13 +29,41 @@ const owner = (options) => __awaiter(void 0, void 0, void 0, function* () {
             commits: parsed[k].length,
         }))
             .sort((a1, a2) => a2.commits - a1.commits);
-        console.log(result);
+        console.log(JSON.stringify(result));
     }
     catch (error) {
         console.error(error);
         throw error;
     }
 });
+function hotSpots(options) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const git = getSimpleGit();
+        const commands = ['log', '--pretty=format:', '--name-only'];
+        if (options.context) {
+            commands.push('--');
+            commands.push(options.context);
+        }
+        const logResult = yield git.raw(commands);
+        let result = logResult
+            .split('\n')
+            .filter((r) => r !== '')
+            .reduce((p, c) => {
+            let item = p.find((r) => r.file === c);
+            if (!item) {
+                item = { file: c, commits: 0 };
+                p.push(item);
+            }
+            item.commits++;
+            return p;
+        }, [])
+            .sort((a1, a2) => a2.commits - a1.commits);
+        if (options.number) {
+            result = result.slice(0, options.number);
+        }
+        console.log(JSON.stringify(result));
+    });
+}
 /**
  * Retrieves the logs of the given context.
  * @param options Specifies the options to use
@@ -70,32 +98,7 @@ function run() {
             .description('Find the most frequently modified files.')
             .requiredOption('-c, --context <context>', 'The file or directory to analyze', '.')
             .option('-n, --number [number]', 'The number of entries to return')
-            .action((options) => __awaiter(this, void 0, void 0, function* () {
-            const git = getSimpleGit();
-            const commands = ['log', '--pretty=format:', '--name-only'];
-            if (options.context) {
-                commands.push('--');
-                commands.push(options.context);
-            }
-            const logResult = yield git.raw(commands);
-            let result = logResult
-                .split('\n')
-                .filter((r) => r !== '')
-                .reduce((p, c) => {
-                let item = p.find((r) => r.file === c);
-                if (!item) {
-                    item = { file: c, commits: 0 };
-                    p.push(item);
-                }
-                item.commits++;
-                return p;
-            }, [])
-                .sort((a1, a2) => a2.commits - a1.commits);
-            if (options.number) {
-                result = result.slice(0, options.number);
-            }
-            console.log(result);
-        }));
+            .action(hotSpots);
         program
             .command('owner')
             .description('Find the author who has modified a specified file or directory the most.')

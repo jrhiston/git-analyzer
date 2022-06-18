@@ -26,6 +26,11 @@ interface GitLogOptions {
   context: string;
 }
 
+interface HotSpotsOptions {
+  context: string;
+  number: number;
+}
+
 const owner = async (options: GitLogOptions) => {
   try {
     const logResult = await getLogs(options);
@@ -46,12 +51,48 @@ const owner = async (options: GitLogOptions) => {
       }))
       .sort((a1, a2) => a2.commits - a1.commits);
 
-    console.log(result);
+    console.log(JSON.stringify(result));
   } catch (error) {
     console.error(error);
     throw error;
   }
 };
+
+async function hotSpots(options: HotSpotsOptions) {
+  const git: SimpleGit = getSimpleGit();
+
+  const commands = ['log', '--pretty=format:', '--name-only'];
+
+  if (options.context) {
+    commands.push('--');
+    commands.push(options.context);
+  }
+
+  const logResult = await git.raw(commands);
+
+  let result = logResult
+    .split('\n')
+    .filter((r) => r !== '')
+    .reduce((p, c) => {
+      let item: HotSpotResult | undefined = p.find((r) => r.file === c);
+
+      if (!item) {
+        item = { file: c, commits: 0 };
+        p.push(item);
+      }
+
+      item.commits++;
+
+      return p;
+    }, [] as Array<HotSpotResult>)
+    .sort((a1, a2) => a2.commits - a1.commits);
+
+  if (options.number) {
+    result = result.slice(0, options.number);
+  }
+
+  console.log(JSON.stringify(result));
+}
 
 /**
  * Retrieves the logs of the given context.
@@ -95,41 +136,7 @@ async function run() {
       '.',
     )
     .option('-n, --number [number]', 'The number of entries to return')
-    .action(async (options) => {
-      const git: SimpleGit = getSimpleGit();
-
-      const commands = ['log', '--pretty=format:', '--name-only'];
-
-      if (options.context) {
-        commands.push('--');
-        commands.push(options.context);
-      }
-
-      const logResult = await git.raw(commands);
-
-      let result = logResult
-        .split('\n')
-        .filter((r) => r !== '')
-        .reduce((p, c) => {
-          let item: HotSpotResult | undefined = p.find((r) => r.file === c);
-
-          if (!item) {
-            item = { file: c, commits: 0 };
-            p.push(item);
-          }
-
-          item.commits++;
-
-          return p;
-        }, [] as Array<HotSpotResult>)
-        .sort((a1, a2) => a2.commits - a1.commits);
-
-      if (options.number) {
-        result = result.slice(0, options.number);
-      }
-
-      console.log(result);
-    });
+    .action(hotSpots);
 
   program
     .command('owner')
