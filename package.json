@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "description": "CLI for analyzing git repositories",
   "keywords": ["git", "analysis", "cli"],
+  "author": "Jack Histon",
   "license": "MIT",
   "main": "bin/index.js",
+  "bin": "bin/index.js",
   "scripts": {
     "tsc": "tsc",
     "lint": "eslint '**/*.{js,ts}' --fix",
